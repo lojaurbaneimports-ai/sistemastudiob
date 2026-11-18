@@ -70,14 +70,6 @@ export default function ServiceOrders() {
         const rows = items.map((i) => ({ service_order_id: soId, product_id: i.product_id || null, description: i.description, quantity: i.quantity, unit_price: i.unit_price, total: i.total, item_type: i.item_type }))
         const { error } = await supabase.from('service_order_items').insert(rows)
         if (error) throw error
-        // stock decrease for parts
-        for (const i of items) {
-          if (i.item_type === 'part' && i.product_id) {
-            const { data: p } = await supabase.from('products').select('stock_qty').eq('id', i.product_id).single()
-            if (p) await supabase.from('products').update({ stock_qty: Number(p.stock_qty) - i.quantity }).eq('id', i.product_id)
-            await supabase.from('stock_movements').insert({ product_id: i.product_id, type: 'out', quantity: i.quantity, reason: 'OS', reference: soId })
-          }
-        }
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['service_orders'] }); toast.success('Salvo'); setOpen(false) },
@@ -91,10 +83,11 @@ export default function ServiceOrders() {
 
   const faturar = useMutation({
     mutationFn: async (so: any) => {
-      await supabase.from('financial_transactions').insert({ type: 'income', description: `OS - ${so.equipment}`, category: 'Serviços', contact_id: so.customer_id, amount: so.total, issue_date: new Date().toISOString().slice(0, 10), due_date: new Date().toISOString().slice(0, 10), status: 'pending' })
-      await supabase.from('service_orders').update({ status: 'delivered' }).eq('id', so.id)
+      const { error } = await supabase.rpc('invoice_service_order', { p_service_order_id: so.id })
+      if (error) throw error
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['service_orders'] }); toast.success('Faturado') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['service_orders'] }); qc.invalidateQueries({ queryKey: ['financial'] }); toast.success('Faturado') },
+    onError: (e: any) => toast.error(e.message),
   })
 
   function openNew() {

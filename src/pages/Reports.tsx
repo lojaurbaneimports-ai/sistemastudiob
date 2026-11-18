@@ -69,7 +69,7 @@ export default function Reports() {
     Object.values(days).forEach((d: any) => {
       if (d.entry && d.exit) {
         let work = new Date(d.exit).getTime() - new Date(d.entry).getTime()
-        if (d.lunch_out && d.lunch_in) work -= (new Date(d.lunch_in).getTime() - new Date(d.lunch_out).getTime())
+        if (d.lunch_out && d.lunch_return) work -= (new Date(d.lunch_return).getTime() - new Date(d.lunch_out).getTime())
         total += work / 3600000
       }
     })

@@ -84,24 +84,13 @@ export default function PDV() {
     mutationFn: async () => {
       if (!register) throw new Error('Abra o caixa primeiro')
       if (cart.length === 0) throw new Error('Carrinho vazio')
-      const { data: sale, error } = await supabase.from('sales').insert({
-        customer_id: customerId || null,
-        cash_register_id: register.id,
-        subtotal, discount: discountValue, total, payment_method: payMethod,
-      }).select().single()
+      if (payMethod === 'cash' && cashReceived < total) throw new Error('O valor recebido é menor que o total da venda')
+      const { error } = await supabase.rpc('finalize_pdv_sale', {
+        p_cash_register_id: register.id, p_customer_id: customerId || null,
+        p_subtotal: subtotal, p_discount: discountValue, p_total: total, p_payment_method: payMethod,
+        p_items: cart.map((c) => ({ product_id: c.product.id, description: c.product.name, quantity: c.qty, unit_price: Number(c.product.sale_price), total: Number(c.product.sale_price) * c.qty })),
+      })
       if (error) throw error
-      const items = cart.map((c) => ({ sale_id: sale.id, product_id: c.product.id, quantity: c.qty, unit_price: c.product.sale_price, total: Number(c.product.sale_price) * c.qty }))
-      const { error: e2 } = await supabase.from('sale_items').insert(items)
-      if (e2) throw e2
-      // stock
-      for (const c of cart) {
-        await supabase.from('products').update({ stock_qty: Number(c.product.stock_qty) - c.qty }).eq('id', c.product.id)
-        await supabase.from('stock_movements').insert({ product_id: c.product.id, type: 'out', quantity: c.qty, reason: 'Venda PDV', reference: sale.id })
-      }
-      // cash movement
-      await supabase.from('cash_movements').insert({ cash_register_id: register.id, type: 'in', amount: total, description: 'Venda PDV' })
-      // financial
-      await supabase.from('financial_transactions').insert({ type: 'income', description: 'Venda PDV', category: 'Vendas', contact_id: customerId || null, amount: total, issue_date: new Date().toISOString().slice(0, 10), due_date: new Date().toISOString().slice(0, 10), payment_date: new Date().toISOString().slice(0, 10), status: 'paid', payment_method: payMethod })
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['cash_register_open'] }); toast.success('Venda finalizada'); setCart([]); setDiscount(0); setCashReceived(0) },
     onError: (e: any) => toast.error(e.message),
@@ -147,10 +136,10 @@ export default function PDV() {
           <CardContent className="space-y-3">
             <div>
               <Label>Cliente (opcional)</Label>
-              <Select value={customerId} onValueChange={(v: any) => setCustomerId(v ?? "")}>
+              <Select value={customerId || 'none'} onValueChange={(v: any) => setCustomerId(v === 'none' ? '' : (v ?? ''))}>
                 <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sem cliente</SelectItem>
+                  <SelectItem value="none">Sem cliente</SelectItem>
                   {(customers || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>

@@ -12,7 +12,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 
-const empty = { type: 'customer', person_type: 'pf', name: '', trade_name: '', document: '', email: '', phone: '', whatsapp: '', zip_code: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', notes: '' }
+const empty = { type: 'customer', person_type: 'PF', name: '', trade_name: '', document: '', email: '', phone: '', whatsapp: '', zip_code: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', notes: '' }
+const digits = (v: string) => v.replace(/\D/g, '')
+const documentMask = (v: string, personType: string) => {
+  const n = digits(v).slice(0, personType === 'PF' ? 11 : 14)
+  return personType === 'PF' ? n.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2') : n.replace(/(\d{2})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1/$2').replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+const phoneMask = (v: string) => digits(v).slice(0, 11).replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')
+const cepMask = (v: string) => digits(v).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2')
 
 export default function Contacts() {
   const qc = useQueryClient()
@@ -115,21 +122,21 @@ export default function Contacts() {
               </div>
               <div><Label>Pessoa</Label>
                 <select className="w-full border rounded-md p-2 bg-background" value={form.person_type} onChange={(e) => setForm({ ...form, person_type: e.target.value })}>
-                  <option value="pf">Física</option>
-                  <option value="pj">Jurídica</option>
+                  <option value="PF">Física</option>
+                  <option value="PJ">Jurídica</option>
                 </select>
               </div>
             </div>
             <div><Label>Nome/Razão Social</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div><Label>Nome Fantasia</Label><Input value={form.trade_name || ''} onChange={(e) => setForm({ ...form, trade_name: e.target.value })} /></div>
-            <div><Label>CPF/CNPJ</Label><Input value={form.document || ''} onChange={(e) => setForm({ ...form, document: e.target.value })} /></div>
+            <div><Label>CPF/CNPJ</Label><Input value={form.document || ''} onChange={(e) => setForm({ ...form, document: documentMask(e.target.value, form.person_type) })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>E-mail</Label><Input value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-              <div><Label>Telefone</Label><Input value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+              <div><Label>Telefone</Label><Input value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: phoneMask(e.target.value) })} /></div>
             </div>
-            <div><Label>WhatsApp</Label><Input value={form.whatsapp || ''} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} /></div>
+            <div><Label>WhatsApp</Label><Input value={form.whatsapp || ''} onChange={(e) => setForm({ ...form, whatsapp: phoneMask(e.target.value) })} /></div>
             <div className="grid grid-cols-3 gap-3">
-              <div><Label>CEP</Label><Input value={form.zip_code || ''} onChange={(e) => setForm({ ...form, zip_code: e.target.value })} /></div>
+              <div><Label>CEP</Label><Input value={form.zip_code || ''} onChange={(e) => setForm({ ...form, zip_code: cepMask(e.target.value) })} /></div>
               <div className="col-span-2"><Label>Rua</Label><Input value={form.street || ''} onChange={(e) => setForm({ ...form, street: e.target.value })} /></div>
             </div>
             <div className="grid grid-cols-3 gap-3">

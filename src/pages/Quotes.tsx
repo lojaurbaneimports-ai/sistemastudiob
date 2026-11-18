@@ -78,23 +78,10 @@ export default function Quotes() {
 
   const convertSale = useMutation({
     mutationFn: async (q: any) => {
-      const { data: qi } = await supabase.from('quote_items').select('*').eq('quote_id', q.id)
-      const { data: sale, error } = await supabase.from('sales').insert({ customer_id: q.customer_id, subtotal: q.subtotal, discount: q.discount, total: q.total, payment_method: 'pending' }).select().single()
+      const { error } = await supabase.rpc('convert_quote_to_sale', { p_quote_id: q.id })
       if (error) throw error
-      if (qi && qi.length) {
-        await supabase.from('sale_items').insert(qi.map((i: any) => ({ sale_id: sale.id, product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price, total: i.total })))
-        for (const i of qi) {
-          if (i.product_id) {
-            const { data: p } = await supabase.from('products').select('stock_qty').eq('id', i.product_id).single()
-            if (p) await supabase.from('products').update({ stock_qty: Number(p.stock_qty) - Number(i.quantity) }).eq('id', i.product_id)
-            await supabase.from('stock_movements').insert({ product_id: i.product_id, type: 'out', quantity: i.quantity, reason: 'Conversão orçamento', reference: q.id })
-          }
-        }
-      }
-      await supabase.from('financial_transactions').insert({ type: 'income', description: 'Orçamento convertido', category: 'Vendas', contact_id: q.customer_id, amount: q.total, issue_date: new Date().toISOString().slice(0, 10), due_date: new Date().toISOString().slice(0, 10), status: 'pending' })
-      await supabase.from('quotes').update({ status: 'approved' }).eq('id', q.id)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); toast.success('Convertido em venda') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Convertido em venda') },
     onError: (e: any) => toast.error(e.message),
   })
 
@@ -157,7 +144,7 @@ export default function Quotes() {
                   <TableCell className="flex gap-1 flex-wrap">
                     <Button size="icon" variant="ghost" onClick={() => openEdit(q)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => del.mutate(q.id)}><Trash2 className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="outline" onClick={() => convertSale.mutate(q)}><ShoppingCart className="h-4 w-4 mr-1" />Venda</Button>
+                    <Button size="sm" variant="outline" disabled={q.status === 'rejected'} onClick={() => convertSale.mutate(q)}><ShoppingCart className="h-4 w-4 mr-1" />Venda</Button>
                     <Button size="sm" variant="outline" onClick={() => convertOS.mutate(q)}><Wrench className="h-4 w-4 mr-1" />OS</Button>
                     <Button size="sm" variant="ghost" onClick={() => printQuote()}>Imprimir</Button>
                   </TableCell>

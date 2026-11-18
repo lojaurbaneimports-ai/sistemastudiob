@@ -67,7 +67,7 @@ export default function Stock() {
               <SelectContent>
                 <SelectItem value="in">Entrada</SelectItem>
                 <SelectItem value="out">Saída</SelectItem>
-                <SelectItem value="adjust">Ajuste</SelectItem>
+                <SelectItem value="adjustment">Ajuste</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -14,7 +14,7 @@ import { datetimeBR } from '@/lib/format'
 const types = [
   { value: 'entry', label: 'Entrada' },
   { value: 'lunch_out', label: 'Saída Almoço' },
-  { value: 'lunch_in', label: 'Volta Almoço' },
+  { value: 'lunch_return', label: 'Volta Almoço' },
   { value: 'exit', label: 'Saída' },
 ]
 
@@ -78,8 +78,8 @@ export default function TimeClock() {
         const start = new Date(d.entry).getTime()
         const end = new Date(d.exit).getTime()
         let work = end - start
-        if (d.lunch_out && d.lunch_in) {
-          work -= (new Date(d.lunch_in).getTime() - new Date(d.lunch_out).getTime())
+        if (d.lunch_out && d.lunch_return) {
+          work -= (new Date(d.lunch_return).getTime() - new Date(d.lunch_out).getTime())
         }
         totalMin += work / 60000
       }
@@ -154,4 +154,3 @@ export default function TimeClock() {
     </div>
   )
 }
-
